@@ -8,6 +8,8 @@ use App\Repository\FileRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\Guid\Guid;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -22,6 +24,12 @@ class File
 
     #[ORM\Column(type: 'string', length: 255)]
     private string $originalName;
+
+    #[Assert\File(
+        maxSize: '8M',
+        maxSizeMessage: 'The file is too large. Allowed maximum size is 8M.'
+    )]
+    private ?UploadedFile $file = null;
 
     #[ORM\Column(type: 'string', length: 255)]
     private string $storedName;
@@ -52,6 +60,19 @@ class File
         $this->id = $id;
 
         return $this;
+    }
+
+    public function getFile(): ?UploadedFile
+    {
+        return $this->file;
+    }
+
+    public function setFile(?UploadedFile $file)
+    {
+        $this->file = $file;
+        /*if ($file) {
+            $this->storedName = $file->getClientOriginalName();
+        }*/
     }
 
     public function getSizeInBytes(): int

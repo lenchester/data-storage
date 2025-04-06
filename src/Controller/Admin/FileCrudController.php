@@ -21,12 +21,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use LogicException;
-use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+
 
 #[IsGranted('ROLE_USER')]
 class FileCrudController extends AbstractCrudController
@@ -45,11 +46,14 @@ class FileCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            FileField::new('storedName')
-                ->setBasePath('uploads/files')
+            FileField::new('file', 'Upload File')
                 ->setUploadDir('public/uploads/files')
-                ->setFormTypeOption('upload_filename', '[randomhash]-[slug].[extension]')
-                ->setLabel('upload file')->onlyOnForms(),
+                ->setBasePath('uploads/files')
+                ->setFormType(FileType::class)
+                ->setFormTypeOption('mapped', true)
+                ->setFormTypeOption('required', true)
+                ->onlyWhenCreating(),
+
             TextField::new('originalName')
                 ->setLabel('File Name'),
             TextField::new('extension')
@@ -80,12 +84,17 @@ class FileCrudController extends AbstractCrudController
 
         $user = $this->getUser();
         if (!$user instanceof User) {
-            throw new LogicException('Authenticated user is not a valid App\Entity\User.');
+            throw new LogicException('Authenticated user is not App\Entity\User.');
         }
+
         $entityInstance->setUser($user);
 
-        if ($entityInstance->getStoredName()) {
-            $fileSize = $this->fileService->getFileSizeInBytes($entityInstance->getStoredName());
+        $uploadedFile = $entityInstance->getFile();
+        if ($uploadedFile instanceof UploadedFile) {
+            $storedName = $this->fileService->handleUpload($uploadedFile);
+            $entityInstance->setStoredName($storedName);
+
+            $fileSize = $this->fileService->getFileSizeInBytes($storedName);
             if ($fileSize !== null) {
                 $entityInstance->setSizeInBytes($fileSize);
             }
@@ -97,16 +106,15 @@ class FileCrudController extends AbstractCrudController
     #[AdminAction(routePath: '/file/download', routeName: 'admin_file_download', methods: ['GET'])]
     public function downloadFile(AdminContext $context): StreamedResponse
     {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw new AccessDeniedException('You must be logged in to download files.');
+        }
+
         $file = $context->getEntity()->getInstance();
 
         if (!$file instanceof File) {
             throw new NotFoundHttpException('File not found.');
-        }
-
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw new AccessDeniedException('You must be logged in to download files.');
         }
 
         return $this->fileService->streamFileForDownload($file);

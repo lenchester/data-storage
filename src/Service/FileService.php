@@ -3,7 +3,9 @@
 namespace App\Service;
 
 use App\Entity\File;
+use RuntimeException;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelInterface;
@@ -16,6 +18,26 @@ class FileService
     public function __construct(KernelInterface $kernel)
     {
         $this->projectDir = $kernel->getProjectDir();
+    }
+
+    public function getProjectDir(): string
+    {
+        return $this->projectDir;
+    }
+
+    public function handleUpload(UploadedFile $uploadedFile): string
+    {
+        $fileName = uniqid() . '.' . $uploadedFile->guessExtension();
+        $targetDirectory = $this->getProjectDir() . '/public/uploads/files';
+        $targetPath = $targetDirectory . '/' . $fileName;
+
+        $uploadedFile->move($targetDirectory, $fileName);
+
+        if (!file_exists($targetPath)) {
+            throw new RuntimeException(sprintf('File was not moved successfully to %s', $targetPath));
+        }
+
+        return $fileName;
     }
 
     /**
