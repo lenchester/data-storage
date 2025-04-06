@@ -25,6 +25,7 @@ use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -34,9 +35,7 @@ class FileCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly FileService $fileService
-    )
-    {
-    }
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -82,10 +81,7 @@ class FileCrudController extends AbstractCrudController
             return;
         }
 
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            throw new LogicException('Authenticated user is not App\Entity\User.');
-        }
+        $user = $this->getAuthenticatedUserEntity();
 
         $entityInstance->setUser($user);
 
@@ -106,12 +102,12 @@ class FileCrudController extends AbstractCrudController
     #[AdminAction(routePath: '/file/download', routeName: 'admin_file_download', methods: ['GET'])]
     public function downloadFile(AdminContext $context): StreamedResponse
     {
-        $user = $this->getUser();
-        if (!$user instanceof User) {
-            throw new AccessDeniedException('You must be logged in to download files.');
-        }
+        $user = $this->getAuthenticatedUserEntity();
 
         $file = $context->getEntity()->getInstance();
+        if ($file->getUser() !== $user) {
+            throw new AccessDeniedHttpException('You do not have permission to download this file.');
+        }
 
         if (!$file instanceof File) {
             throw new NotFoundHttpException('File not found.');
@@ -127,11 +123,7 @@ class FileCrudController extends AbstractCrudController
         FilterCollection $filters
     ): QueryBuilder
     {
-        $user = $this->getUser();
-
-        if (!$user instanceof User) {
-            throw new LogicException('Authenticated user is not a valid App\Entity\User.');
-        }
+        $user = $this->getAuthenticatedUserEntity();
 
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
         $qb->andWhere('entity.user = :user')
@@ -139,5 +131,16 @@ class FileCrudController extends AbstractCrudController
             ->orderBy('entity.createdAt', 'ASC');
 
         return $qb;
+    }
+
+    private function getAuthenticatedUserEntity(): User
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw new LogicException('Authenticated user is not an instance of App\Entity\User.');
+        }
+
+        return $user;
     }
 }
