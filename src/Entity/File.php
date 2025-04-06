@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\Guid\Guid;
 
 #[ORM\Entity(repositoryClass: FileRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class File
 {
     #[ORM\Id]
@@ -27,6 +28,9 @@ class File
 
     #[ORM\Column(type: 'string', length: 10)]
     private string $extension;
+
+    #[ORM\Column(type: 'integer')]
+    private int $sizeInBytes;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'files')]
     #[ORM\JoinColumn(nullable: false)]
@@ -48,6 +52,16 @@ class File
         $this->id = $id;
 
         return $this;
+    }
+
+    public function getSizeInBytes(): int
+    {
+        return $this->sizeInBytes;
+    }
+
+    public function setSizeInBytes(int $sizeInBytes): void
+    {
+        $this->sizeInBytes = $sizeInBytes;
     }
 
     public function getOriginalName(): string
@@ -106,5 +120,14 @@ class File
     public function setCreatedAt(DateTime $createdAt): void
     {
         $this->createdAt = $createdAt;
+    }
+
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function setFileExtensionFromPath(): void
+    {
+        if ($this->originalName) {
+            $this->extension = pathinfo($this->storedName, PATHINFO_EXTENSION);
+        }
     }
 }
