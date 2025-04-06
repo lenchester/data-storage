@@ -38,7 +38,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __construct()
     {
-        $this->id =  Guid::uuid4()->toString();
+        $this->id = Guid::uuid4()->toString();
     }
 
     public function getId(): string
