@@ -1,0 +1,18 @@
+version: "3"
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+
+  db:
+    platform: linux/x86_64
+    image: mysql:9.2
+    environment:
+      MYSQL_DATABASE: db
+      MYSQL_USER: db
+      MYSQL_PASSWORD: db
+      MYSQL_ROOT_PASSWORD: db
