@@ -27,5 +27,5 @@ The `FileEntityBuilder` class is responsible for constructing `File` entities. I
 
 
 ## Getting Started
-
+run composer install with web container
 
