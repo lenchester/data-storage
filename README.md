@@ -27,5 +27,11 @@ The `FileEntityBuilder` class is responsible for constructing `File` entities. I
 
 
 ## Getting Started
-run composer install with web container
+1. Copy .env into .env.local file
+2. Run composer install with web container
+   1. `docker exec -it web bash`
+   2. `composer install`
+3. From web container: `php bin/console doctrine:migrations:migrate`
+4. From web container: `php bin/console user:create user pass`
+5. http://localhost:8080/ Now you can login and start uploading files
 

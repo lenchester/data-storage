@@ -37,7 +37,6 @@ class FileEntityBuilder
             $file->setSizeInBytes($fileSize);
         }
 
-
         return $file;
     }
 }
