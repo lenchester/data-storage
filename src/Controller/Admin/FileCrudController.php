@@ -5,7 +5,8 @@ namespace App\Controller\Admin;
 use App\Entity\File;
 use App\Entity\User;
 use App\Field\FileField;
-use App\Service\FileService;
+use App\Service\File\Builder\FileEntityBuilder;
+use App\Service\File\FileService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
@@ -18,11 +19,12 @@ use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use InvalidArgumentException;
 use LogicException;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
-use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -34,7 +36,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class FileCrudController extends AbstractCrudController
 {
     public function __construct(
-        private readonly FileService $fileService
+        private readonly FileService $fileService,
+        private readonly FileEntityBuilder $fileEntityBuilder
     ) {}
 
     public static function getEntityFqcn(): string
@@ -54,7 +57,9 @@ class FileCrudController extends AbstractCrudController
                 ->onlyWhenCreating(),
 
             TextField::new('originalName')
-                ->setLabel('File Name'),
+                ->setLabel('File Name')
+                ->onlyWhenUpdating()
+                ->onlyOnIndex(),
             TextField::new('extension')
                 ->setLabel('File Extension')
                 ->onlyOnIndex(),
@@ -62,6 +67,8 @@ class FileCrudController extends AbstractCrudController
                 ->setLabel('File Size')
                 ->onlyOnIndex()
                 ->formatValue(fn($value, $entity) => $this->fileService->getFileSizeReadable($value)),
+            DateTimeField::new('createdAt')
+                ->onlyOnIndex()
         ];
     }
 
@@ -78,23 +85,17 @@ class FileCrudController extends AbstractCrudController
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof File) {
-            return;
+            throw new InvalidArgumentException('No valid file passed.');
+        }
+
+        $uploadedFile = $entityInstance->getFile();
+        if (!$uploadedFile instanceof UploadedFile) {
+            throw new InvalidArgumentException('No valid uploaded file found.');
         }
 
         $user = $this->getAuthenticatedUserEntity();
 
-        $entityInstance->setUser($user);
-
-        $uploadedFile = $entityInstance->getFile();
-        if ($uploadedFile instanceof UploadedFile) {
-            $storedName = $this->fileService->handleUpload($uploadedFile);
-            $entityInstance->setStoredName($storedName);
-
-            $fileSize = $this->fileService->getFileSizeInBytes($storedName);
-            if ($fileSize !== null) {
-                $entityInstance->setSizeInBytes($fileSize);
-            }
-        }
+        $entityInstance = $this->fileEntityBuilder->build($entityInstance, $uploadedFile, $user);
 
         parent::persistEntity($entityManager, $entityInstance);
     }
@@ -115,6 +116,13 @@ class FileCrudController extends AbstractCrudController
 
         return $this->fileService->streamFileForDownload($file);
     }
+
+    public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        $this->fileService->delete($entityInstance->getStoredName());
+        parent::deleteEntity($entityManager, $entityInstance);
+    }
+
 
     public function createIndexQueryBuilder(
         SearchDto $searchDto,

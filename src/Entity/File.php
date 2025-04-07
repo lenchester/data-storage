@@ -143,12 +143,12 @@ class File
         $this->createdAt = $createdAt;
     }
 
-    #[ORM\PrePersist]
+    /*#[ORM\PrePersist]
     #[ORM\PreUpdate]
     public function setFileExtensionFromPath(): void
     {
         if ($this->originalName) {
             $this->extension = pathinfo($this->storedName, PATHINFO_EXTENSION);
         }
-    }
+    }*/
 }
