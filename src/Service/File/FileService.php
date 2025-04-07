@@ -33,11 +33,6 @@ class FileService
         return null;
     }
 
-    public function getFileExtension(File $file): string
-    {
-        return pathinfo($file->getOriginalName(), PATHINFO_EXTENSION);
-    }
-
     public function streamFileForDownload(File $file): StreamedResponse
     {
         if (!$this->storage->exists($file->getStoredName())) {

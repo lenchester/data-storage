@@ -58,7 +58,9 @@ class FileCrudController extends AbstractCrudController
 
             TextField::new('originalName')
                 ->setLabel('File Name')
-                ->onlyWhenUpdating()
+                ->onlyWhenUpdating(),
+            TextField::new('originalName')
+                ->setLabel('File Name')
                 ->onlyOnIndex(),
             TextField::new('extension')
                 ->setLabel('File Extension')
