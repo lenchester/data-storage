@@ -32,8 +32,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 EXPOSE 80
 
 # Set PHP upload limits
-RUN echo "upload_max_filesize = 8M" >> /usr/local/etc/php/conf.d/uploads.ini
-RUN echo "post_max_size = 8M" >> /usr/local/etc/php/conf.d/uploads.ini
+RUN echo "upload_max_filesize = 128M" >> /usr/local/etc/php/conf.d/uploads.ini
+RUN echo "post_max_size = 128M" >> /usr/local/etc/php/conf.d/uploads.ini
 RUN echo "memory_limit = 128M" >> /usr/local/etc/php/conf.d/uploads.ini
 
 
